@@ -24,8 +24,11 @@ OBJCOPY := $(CROSS)objcopy
 QEMU    ?= qemu-system-riscv32
 
 # --------------------------------------------------------------- 编译 / 链接
-# 必须与 linker.ld 里的 riscv 设置配套，且要命中工具链的 multilib（rv32imac/ilp32）
-ARCH := -march=rv32imac -mabi=ilp32
+# 必须与 linker.ld 里的 riscv 设置配套，且要命中工具链的 multilib（rv32imac/ilp32）。
+# 新版 binutils（2.36+）把 Zicsr 从基础 I 拆成独立扩展：csrr/csrw/csrs 需要显式写
+# _zicsr，否则报 "unrecognized opcode ... extension `zicsr' required"。
+# 多出来的 _zicsr 不影响 multilib 匹配（库仍是 rv32imac/ilp32 那一份）。
+ARCH := -march=rv32imac_zicsr -mabi=ilp32
 
 # -MMD -MP：编译 .c 时顺带生成 .d，记录它 include 了哪些头文件（见文件末尾）
 CFLAGS := $(ARCH) \

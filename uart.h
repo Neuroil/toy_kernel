@@ -3,15 +3,15 @@
 //
 #pragma once
 
-#include <stdio.h>
+#ifndef TOY_KERNEL_UART_H
+#define TOY_KERNEL_UART_H
 
 #define UART0_BASE 0x10000000UL
 #define UART_THR   (UART0_BASE + 0x00)
 #define UART_LSR   (UART0_BASE + 0x05)
 #define UART_LSR_THRE 0x20
 
-#ifndef TOY_KERNEL_UART_H
-#define TOY_KERNEL_UART_H
+#include <stdint.h>
 
 inline void uart_put_char(unsigned char c) {
     auto volatile thr = (volatile unsigned char *)UART_THR;
@@ -30,8 +30,25 @@ inline void uart_put_string(const char *s) {
     }
 }
 
-inline void my_print(const char *s) {
-    uart_put_string(s);
+inline void print_uint64(uint64_t val) {
+    // uint64_t 最大 20 位十进制数 + \0
+    char buf[21];
+    int i = 20;
+    buf[i] = '\0';
+
+    if (val == 0) {
+        uart_put_char('0');
+        return;
+    }
+
+    while (val > 0) {
+        buf[--i] = '0' + (val % 10);
+        val /= 10;
+    }
+
+    while (buf[i] != '\0') {
+        uart_put_char(buf[i++]);
+    }
 }
 
 #endif /* TOY_KERNEL_UART_H */
