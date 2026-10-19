@@ -27,7 +27,6 @@
 static inline uint64_t read_mtime() {
     auto hi = (volatile uint32_t *) CLINT_MTIME_HI;
     auto lo = (volatile uint32_t *) CLINT_MTIME_LO;
-
     uint32_t h1, l, h2;
 
     do {
@@ -51,7 +50,7 @@ static inline void write_mtimecmp(uint32_t hartid, uint64_t value) {
 }
 
 #define MCAUSE_MTI  0x80000007UL
-#define TIMER_INTERVAL 0x000f0000
+#define TIMER_INTERVAL 0x00010000
 
 void trap_c_handler(uint32_t *regs) {
     (void)regs;
@@ -65,8 +64,13 @@ void trap_c_handler(uint32_t *regs) {
         uint64_t now = read_mtime();
         write_mtimecmp(hartid, now + TIMER_INTERVAL);
 
+        static int six_seven = 67;
+        // do sth
+        uart_put_string("interrupt: ");
+        if ((++six_seven & 1) == 1) print_uint64(67);
+        else print_uint64(6767);
+        uart_put_char('\n');
 
-        uart_put_string("smjb\n");
     }
     // 其他异常/中断
 }

@@ -33,6 +33,7 @@ void kernel_main() {
     // do some work
     uint64_t time = read_mtime();
     print_uint64(time);
+    uart_put_char('\n');
 
     timer_interrupt_test();
     for (;;){}
