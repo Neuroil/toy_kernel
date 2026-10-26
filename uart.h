@@ -6,12 +6,9 @@
 #ifndef TOY_KERNEL_UART_H
 #define TOY_KERNEL_UART_H
 
-#define UART0_BASE 0x10000000UL
-#define UART_THR   (UART0_BASE + 0x00)
-#define UART_LSR   (UART0_BASE + 0x05)
-#define UART_LSR_THRE 0x20
-
 #include <stdint.h>
+
+#include "config.h"
 
 inline void uart_put_char(unsigned char c) {
     auto volatile thr = (volatile unsigned char *)UART_THR;
