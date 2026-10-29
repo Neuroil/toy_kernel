@@ -15,7 +15,10 @@ _heap_size = (_heap_size + 15) & ~15; /* 强制按 16 字节对齐 */
 SECTIONS {
 
     _phy_kernel_base = 0x80000000;
-    _vir_kernel_base = 0xC0000000;
+    /* 页表/MMU 还没实现，内核实际在物理地址 0x80000000 执行，
+       读全局变量也会访问到未映射的 0xC0000000，
+       等 boot.S 建立 Sv32 映射并真正跳到高地址后，再改回 0xC0000000 */
+    _vir_kernel_base = 0x80000000;
     _kernel_offset   =  _phy_kernel_base - _vir_kernel_base;
 
     /* 起始位置 */

@@ -10,7 +10,7 @@
 
 #include "config.h"
 
-inline void uart_put_char(unsigned char c) {
+static inline void uart_put_char(unsigned char c) {
     auto volatile thr = (volatile unsigned char *)UART_THR;
     auto volatile lsr = (volatile unsigned char *)UART_LSR;
 
@@ -20,14 +20,14 @@ inline void uart_put_char(unsigned char c) {
     *thr = c;
 }
 
-inline void uart_put_string(const char *s) {
+static inline void uart_put_string(const char *s) {
     while (*s) {
         if (*s == '\n') uart_put_char('\r');
         uart_put_char(*(s++));
     }
 }
 
-inline void print_uint64(uint64_t val) {
+static inline void print_uint64(uint64_t val) {
     // uint64_t 最大 20 位十进制数 + \0
     char buf[21];
     int i = 20;

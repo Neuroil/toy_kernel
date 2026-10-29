@@ -19,10 +19,7 @@
  */
 
 #include <stdint.h>
-
-#define CLINT_BASE 0x02000000UL
-#define CLINT_MTIME_LO  (CLINT_BASE + 0xBFF8)
-#define CLINT_MTIME_HI  (CLINT_BASE + 0xBFFC)
+#include "config.h"
 
 static inline uint64_t read_mtime() {
     auto hi = (volatile uint32_t *) CLINT_MTIME_HI;
@@ -49,9 +46,6 @@ static inline void write_mtimecmp(uint32_t hartid, uint64_t value) {
     *lp = (uint32_t)(value & 0xffffffff);
 }
 
-#define MCAUSE_MTI  0x80000007UL
-#define TIMER_INTERVAL 0x00010000
-
 void trap_c_handler(uint32_t *regs) {
     (void)regs;
     uint32_t mcause;
@@ -66,6 +60,7 @@ void trap_c_handler(uint32_t *regs) {
 
         static int six_seven = 67;
         // do sth
+        // 调度器
         uart_put_string("interrupt: ");
         if ((++six_seven & 1) == 1) print_uint64(67);
         else print_uint64(6767);
@@ -73,4 +68,6 @@ void trap_c_handler(uint32_t *regs) {
 
     }
     // 其他异常/中断
+    // 读取磁盘
+
 }

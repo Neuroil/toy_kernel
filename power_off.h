@@ -7,7 +7,7 @@
 
 #include <stdint.h>
 
-#define TEST_BASE 0x100000UL
+#include "config.h"
 
 typedef volatile uint32_t mmio32_reg_t ;
 
