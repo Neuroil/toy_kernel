@@ -31,9 +31,12 @@ QEMU    ?= qemu-system-riscv32
 ARCH := -march=rv32imac_zicsr -mabi=ilp32
 
 # -MMD -MP：编译 .c 时顺带生成 .d，记录它 include 了哪些头文件（见文件末尾）
+# -g：生成调试信息，GDB 才能按源码行下断点；调试时用 `make clean && make OPT=-O0`，
+# 否则 -O2 会把局部变量和 assert 直接优化掉（断点看起来像“没生效”）。
+OPT ?= -O2
 CFLAGS := $(ARCH) \
           -ffreestanding -nostdlib -fno-pie -fno-stack-protector \
-          -Wall -Wextra -O2 -msmall-data-limit=0 \
+          -Wall -Wextra $(OPT) -g -msmall-data-limit=0 \
           -MMD -MP
 
 # 链接用 gcc 驱动而不是直接调 ld：让它替我们挑对的 linker emulation、并找到 libgcc
@@ -73,7 +76,7 @@ ELF := $(BUILD)/$(KERNEL).elf
 BIN := $(BUILD)/$(KERNEL).bin
 
 # ------------------------------------------------------------------- 目标
-.PHONY: all run clean
+.PHONY: all run debug clean
 
 all: $(BIN)
 
@@ -99,6 +102,12 @@ $(BUILD)/%.o: %.S
 # 内核必须正好链接在那儿——这就是 linker.ld 里 ORIGIN(RAM) = 0x80000000 的由来。
 run: $(ELF)
 	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF)
+
+# make debug：QEMU 停在复位向量并开放 gdbstub（localhost:1234），
+# 另开一个终端执行 `riscv32-unknown-elf-gdb build/kernel.elf`，再 `target remote :1234`。
+# -d int,guest_errors 可选：把异常/中断原因打到 stderr，排查 trap 很有用。
+debug: $(ELF)
+	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF) -s -S
 
 # ------------------------------------------------------------------- 清理
 # 产物全在 build/ 一个目录里，所以清理就是删目录，不用逐个点名
