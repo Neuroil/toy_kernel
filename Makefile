@@ -5,9 +5,10 @@
 #   make run         在 QEMU 里启动：M 模式，无固件
 #   make clean       删除 build/ 整个目录
 #
-#  主线是 M 模式：QEMU 的复位 ROM 固定往 0x80000000 跳，所以内核就链在那里，
-#  别改 linker.ld 里的 ORIGIN(RAM)。两处必须配套的常量：
-#    linker.ld 的 LENGTH = 128M  <->  `make run` 里的 -m 128M（栈顶 = ORIGIN + LENGTH）
+#  主线是 M 模式：QEMU 的复位 ROM 固定往 0x80000000 跳，所以内核的装载地址（LMA）
+#  必须是 0x80000000；链接地址（VMA）由 linker.ld 的 _vir_kernel_base 决定。
+#  页表启用前 VMA 必须等于 LMA（0x80000000），否则 C 代码第一次访问全局就会 fault。
+#  两处必须配套的常量：config.h 的 PHYS_SIZE = 128M <-> `make run` 里的 -m 128M。
 #
 #  Makefile 与 CMake 的对应关系（重点看这三条）：
 #   1. `CC := ...`        变量赋值，      ≈ set(CC ...)
@@ -34,14 +35,30 @@ ARCH := -march=rv32imac_zicsr -mabi=ilp32
 # -g：生成调试信息，GDB 才能按源码行下断点；调试时用 `make clean && make OPT=-O0`，
 # 否则 -O2 会把局部变量和 assert 直接优化掉（断点看起来像“没生效”）。
 OPT ?= -O2
+
+# 代码模型 / 重定位策略：内核是固定地址镜像，“链接在哪就必须运行在哪”，
+# 不能让 PC 相对寻址把“装载地址装错了”这件事掩盖过去。
+#   -mcmodel=medlow    数据地址用 lui+addi 绝对编码（RV32 的 ±2GiB 覆盖全部 32 位地址）。
+#                      运行地址与链接地址不一致时，第一次访问全局/字符串就 fault。
+#                      不用 medany：auipc 相对寻址会让整份镜像平移后仍然“正常”，
+#                      链接地址和实际装载地址对不上也发现不了。
+#   -mno-relax         禁止链接器 relaxation：它会把 auipc/lui+addi 改写成 gp 相对，
+#                      并删改指令，导致反汇编和断点与编译结果对不上。
+#                      编译和链接都要传，否则链接器仍会改写预编译库里的指令序列。
+#   -fno-pic -fno-pie  不生成 GOT/PLT 间接寻址；内核没有动态链接器，
+#                      所有地址必须是链接期常量。
+# 对应的链接参数见下面的 LDFLAGS。
 CFLAGS := $(ARCH) \
-          -ffreestanding -nostdlib -fno-pie -fno-stack-protector \
+          -mcmodel=medlow -mno-relax -fno-pic -fno-pie \
+          -ffreestanding -nostdlib -fno-stack-protector \
           -Wall -Wextra $(OPT) -g -msmall-data-limit=0 \
           -MMD -MP
 
 # 链接用 gcc 驱动而不是直接调 ld：让它替我们挑对的 linker emulation、并找到 libgcc
 # --require-defined=_start：boot.S 里还没有 _start 时让链接直接报错，而不是“成功”产出一个空内核
-LDFLAGS := $(ARCH) -nostdlib -Wl,-T,linker.ld -Wl,--require-defined=_start
+# -mno-relax：GCC 会转成 ld 的 --no-relax，阻止链接器改写/删除我们和 libc 里的指令。
+# -no-pie：即使工具链默认 PIE，也强制产出固定地址的 EXEC。
+LDFLAGS := $(ARCH) -mno-relax -no-pie -nostdlib -Wl,-T,linker.ld -Wl,--require-defined=_start
 
 # 库 + 顺序：ld 从左往右扫，只从库里“抓”出解决当前未定义符号的目标文件，
 # 所以库必须排在使用者后面；-lgcc 永远放最后（libc 里也可能用到 __udivdi3 之类）。
@@ -99,7 +116,7 @@ $(BUILD)/%.o: %.S
 
 # ------------------------------------------------------------------- 运行
 # -bios none：QEMU 不加载任何固件，复位 ROM 直接跳到 0x80000000 的 M 模式开始执行。
-# 内核必须正好链接在那儿——这就是 linker.ld 里 ORIGIN(RAM) = 0x80000000 的由来。
+# 这是装载地址（LMA）；链接地址（VMA）由 linker.ld 决定。没有页表时两者必须相等。
 run: $(ELF)
 	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF)
 
