@@ -23,6 +23,7 @@ CROSS   ?= riscv32-unknown-elf-
 CC      := $(CROSS)gcc
 OBJCOPY := $(CROSS)objcopy
 QEMU    ?= qemu-system-riscv32
+GDB		:= $(CROSS)gdb
 
 # --------------------------------------------------------------- 编译 / 链接
 # 必须与 linker.ld 里的 riscv 设置配套，且要命中工具链的 multilib（rv32imac/ilp32）。
@@ -125,6 +126,14 @@ run: $(ELF)
 # -d int,guest_errors 可选：把异常/中断原因打到 stderr，排查 trap 很有用。
 debug: $(ELF)
 	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF) -s -S
+
+gdb:
+	$(GDB) $(ELF)
+
+# ------------------------------------------------------------------- 信息
+# 显示 elf 文件信息与布局
+info:
+	readelf $(ELF) -Shl
 
 # ------------------------------------------------------------------- 清理
 # 产物全在 build/ 一个目录里，所以清理就是删目录，不用逐个点名

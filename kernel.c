@@ -39,8 +39,12 @@ void kernel_main() {
     print_uint64(time);
     uart_put_char('\n');
 
-    // timer_interrupt_test();
-    // for (;;){}
+    timer_interrupt_test();
+    uint64_t now = read_mtime();
+    uint64_t sep = TIMER_INTERVAL * 2;
+    while (read_mtime() <= now + sep) {
+        asm volatile("wfi");
+    }
 
     uintptr_t new_page = pmm_alloc_page();
     assert(new_page != 0);
