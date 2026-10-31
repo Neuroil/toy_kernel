@@ -24,6 +24,7 @@ CC      := $(CROSS)gcc
 OBJCOPY := $(CROSS)objcopy
 QEMU    ?= qemu-system-riscv32
 GDB		:= $(CROSS)gdb
+READELF := $(CROSS)readelf
 
 # --------------------------------------------------------------- 编译 / 链接
 # 必须与 linker.ld 里的 riscv 设置配套，且要命中工具链的 multilib（rv32imac/ilp32）。
@@ -118,14 +119,15 @@ $(BUILD)/%.o: %.S
 # ------------------------------------------------------------------- 运行
 # -bios none：QEMU 不加载任何固件，复位 ROM 直接跳到 0x80000000 的 M 模式开始执行。
 # 这是装载地址（LMA）；链接地址（VMA）由 linker.ld 决定。没有页表时两者必须相等。
+# sstc=on：内核在 S 模式用 stimecmp 处理定时器中断，QEMU 必须暴露 Sstc。
 run: $(ELF)
-	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF)
+	$(QEMU) -M virt -m 128M -cpu rv32,sstc=on -nographic -bios none -kernel $(ELF)
 
 # make debug：QEMU 停在复位向量并开放 gdbstub（localhost:1234），
 # 另开一个终端执行 `riscv32-unknown-elf-gdb build/kernel.elf`，再 `target remote :1234`。
 # -d int,guest_errors 可选：把异常/中断原因打到 stderr，排查 trap 很有用。
 debug: $(ELF)
-	$(QEMU) -M virt -m 128M -nographic -bios none -kernel $(ELF) -s -S
+	$(QEMU) -M virt -m 128M -cpu rv32,sstc=on -nographic -bios none -kernel $(ELF) -s -S
 
 gdb:
 	$(GDB) $(ELF)
@@ -133,7 +135,7 @@ gdb:
 # ------------------------------------------------------------------- 信息
 # 显示 elf 文件信息与布局
 info:
-	readelf $(ELF) -Shl
+	$(READELF) $(ELF) -Shl
 
 # ------------------------------------------------------------------- 清理
 # 产物全在 build/ 一个目录里，所以清理就是删目录，不用逐个点名

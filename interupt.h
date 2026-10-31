@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "config.h"
+#include "uart.h"
 
 static inline uint64_t read_mtime() {
     auto hi = (volatile uint32_t *) CLINT_MTIME_HI;
@@ -35,28 +36,26 @@ static inline uint64_t read_mtime() {
     return ((uint64_t)h1 << 32 | l);
 }
 
-#define CLINT_MTIMECMP(hart) (CLINT_BASE + 0x4000 + 8 * (hart))
+/* Sstc：mtime >= stimecmp 时置起 STIP。RV32 上 64 位 CSR 分高低两半写 */
+static inline void write_stimecmp(uint64_t value) {
+    uint32_t hi = (uint32_t)(value >> 32);
+    uint32_t lo = (uint32_t)value;
 
-static inline void write_mtimecmp(uint32_t hartid, uint64_t value) {
-    auto lp = (volatile uint32_t *) CLINT_MTIMECMP(hartid);
-    auto hp = (volatile uint32_t *) (CLINT_MTIMECMP(hartid) + 0x4);
-
-    *lp = 0xffffffff;
-    *hp = (uint32_t)(value >> 32);
-    *lp = (uint32_t)(value & 0xffffffff);
+    // 先写低半字 0xffffffff，保证中途不会出现一个已经过期的时间点；
+    // 高半字写完后，再写低半字让完整 64 位值生效
+    asm volatile("csrw stimecmp, %0" :: "r"(0xffffffffu));
+    asm volatile("csrw stimecmph, %0" :: "r"(hi));
+    asm volatile("csrw stimecmp, %0" :: "r"(lo));
 }
 
 void trap_c_handler(uint32_t *regs) {
     (void)regs;
-    uint32_t mcause;
-    asm volatile("csrr %0, mcause" : "=r"(mcause));
+    uint32_t scause;
+    asm volatile("csrr %0, scause" : "=r"(scause));
 
-    if (mcause == MCAUSE_MTI) {
-        uint32_t hartid;
-        asm volatile("csrr %0, mhartid" : "=r"(hartid));
-
-        uint64_t now = read_mtime();
-        write_mtimecmp(hartid, now + TIMER_INTERVAL);
+    if (scause == MCAUSE_STI) {
+        /* 写一个新的 stimecmp 清掉本次 STIP */
+        write_stimecmp(read_mtime() + TIMER_INTERVAL);
 
         static int six_seven = 67;
         // do sth

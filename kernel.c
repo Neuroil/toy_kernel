@@ -11,21 +11,19 @@
 
 
 void timer_interrupt_test() {
-    uint32_t hartid;
-    asm volatile("csrr %0, mhartid" : "=r"(hartid));
-
     extern void trap_entry(void);
-    asm volatile("csrw mtvec, %0" :: "r"((uint32_t)trap_entry));
 
-    // 设定第一次中断的时间点
-    uint64_t now = read_mtime();
-    write_mtimecmp(hartid, now + TIMER_INTERVAL);
+    // S 模式陷阱向量（Direct 模式；trap_entry 按 4 字节对齐）
+    asm volatile("csrw stvec, %0" :: "r"((uint32_t)trap_entry));
 
-    // mie.MTIE (bit 7)
-    asm volatile("csrs mie, %0" :: "r"(1UL << 7));
+    // 设定第一次中断的时间点：mtime >= stimecmp 时置起 STIP
+    write_stimecmp(read_mtime() + TIMER_INTERVAL);
 
-    // mstatus.MIE (bit 3)
-    asm volatile("csrs mstatus, %0" :: "r"(1UL << 3));
+    // sie.STIE (bit 5)
+    asm volatile("csrs sie, %0" :: "r"(1UL << 5));
+
+    // sstatus.SIE (bit 1)
+    asm volatile("csrs sstatus, %0" :: "r"(1UL << 1));
 }
 
 void kernel_main() {

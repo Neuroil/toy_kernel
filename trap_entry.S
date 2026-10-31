@@ -72,4 +72,4 @@ trap_entry:
     lw t6, 116(sp)
 
     addi sp, sp, 128
-    mret
+    sret
