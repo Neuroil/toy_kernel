@@ -83,17 +83,13 @@ SECTIONS {
      * 因此运行在MMU未开启阶段会出现寻到暂不可用的虚拟地址的情况。
      * 所以最好全用li获取符号地址，再手动计算。
      */
-    . = ALIGN(8);
-    .early_pt : AT(ADDR(.early_pt) + _kernel_offset) ALIGN(4096) {
-        _early_root_pt = .;
-        . += 4096;          /* 根页表 */
-        _early_l2_ident = .;
-        . += 4096;          /* 恒等映射二级页表 */
-        _early_l2_high = .;
-        . += 4096;          /* 高映射二级页表 */
-        _early_l2_mmio = .;
-        . += 4096;          /* MMIO 二级页表 */
+    . =  ALIGN(4096);
+    .early_pt : AT(ADDR(.early_pt) + _kernel_offset) {
+/*        _early_root_pt = .;*/
+        *(.early_pt)
+        *(.early_pt.*)
     }
+
 
     /* 数据段结束位置 */
     _data_end = .;

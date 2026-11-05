@@ -95,7 +95,7 @@ ELF := $(BUILD)/$(KERNEL).elf
 BIN := $(BUILD)/$(KERNEL).bin
 
 # ------------------------------------------------------------------- 目标
-.PHONY: all run debug clean
+.PHONY: all run debug clean f gdb i
 
 all: $(BIN)
 
@@ -129,18 +129,29 @@ run: $(ELF)
 debug: $(ELF)
 	$(QEMU) -M virt -m 128M -cpu rv32,sstc=on -nographic -bios none -kernel $(ELF) -s -S
 
-gdb:
+gdb: $(ELF)
 	$(GDB) $(ELF)
+
+# make f：跑 3 秒，把 QEMU 的 serial 输出和第一条 trap 打到终端。
+# 注意 </dev/null：QEMU 的 -nographic 在 stdin 是真实终端时会吞掉 -d 日志
+#（-D 写出的文件也是 0 字节）；stdin 接 /dev/null 后才正常。
+# awk 读到第一条 riscv_cpu_do_interrupt 就退出，不再打印后续的取指死循环；
+# QEMU 由 timeout 收尾，不会生成几百 MB 日志。
+f: $(ELF)
+	@timeout 3 $(QEMU) -M virt -m 128M -cpu rv32,sstc=on \
+	  -nographic -bios none -kernel $(ELF) \
+	  -d int,guest_errors </dev/null 2>&1 | awk '/riscv_cpu_do_interrupt/ { print; exit } { print }'
 
 # ------------------------------------------------------------------- 信息
 # 显示 elf 文件信息与布局
-info:
+i: $(ELF)
 	$(READELF) $(ELF) -Shl
 
 # ------------------------------------------------------------------- 清理
 # 产物全在 build/ 一个目录里，所以清理就是删目录，不用逐个点名
 clean:
 	rm -rf $(BUILD)
+	rm -f /tmp/qemu*.log
 
 # .d 文件里是 “x.o: x.c x.h ...” 之类的规则，直接 include 进来复用 make 的依赖判断。
 # 前面的 `-` 表示文件不存在时不报错（第一次构建时 .d 还没生成）。

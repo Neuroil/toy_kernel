@@ -56,22 +56,16 @@ _start:
     mret
 
 _s_start:
+    /* 内核栈顶 */
     la sp, _stack_top
     call build_early_page_table
 
-    li t0, (1 << 31)        /* MODE = Sv32 */
-    la t1, _early_root_pt   /* 根页表的物理地址（PC-relative） */
-    srli t1, t1, 12         /* PPN = 物理地址 >> 12 */
-    or t0, t0, t1
-    csrw satp, t0
-    sfence.vma              /* 刷新 TLB，使 satp 生效 */
 
     lui t0, %hi(_high_entry)
     addi t0, t0, %lo(_high_entry)
     jr t0
 
 _high_entry:
-    /* 内核栈顶 */
     la sp, _stack_top
 
     /* 设置全局指针 gp */

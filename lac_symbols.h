@@ -18,7 +18,7 @@ extern char _heap_start[];
 extern char _heap_end[];
 
 // 早期页表
-extern char _early_root_pt[];
+// extern char _early_root_pt[];
 
 
 #endif //TOY_KERNEL_L_A_C_SYMBOLS_H
