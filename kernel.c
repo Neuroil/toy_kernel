@@ -8,6 +8,7 @@
 #include "power_off.h"
 #include "interupt.h"
 #include "pmm.h"
+#include "page_table.h"
 
 
 void timer_interrupt_test() {
@@ -54,6 +55,7 @@ void kernel_main() {
     pmm_free_page(new_page);
     assert(bit_get(pa_to_idx(new_page)) == 0);
 
+    init_top_pgt();
     //
     uart_put_string("\nend\n");
     machine_power_off();
