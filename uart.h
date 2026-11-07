@@ -48,4 +48,12 @@ static inline void print_uint64(uint64_t val) {
     }
 }
 
+static inline void print_binary(uintptr_t val) {
+    int bit_cnt = sizeof(val) * 8;
+    for (int i = bit_cnt - 1; i >= 0; --i) {
+        uart_put_char(((val >> i) & 1) ? '1' : '0');
+    }
+    // uart_put_char('\n');
+}
+
 #endif /* TOY_KERNEL_UART_H */
