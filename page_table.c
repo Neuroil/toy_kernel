@@ -14,9 +14,9 @@ uint32_t early_root_pt[1024] __attribute__((aligned(4096), section(".early_pt"))
 
 // uint32_t root_pt[1024] __attribute__((aligned(4096)));
 
-void build_early_page_table(void) {
+void pt_build_early_page_table(void) {
     volatile uint32_t* pa_early_root_pt = pa(early_root_pt);
-    for (int i = 0; i < 1024; ++i) pa_early_root_pt[i] = 0;
+    init_pt_as_0(pa_early_root_pt);
 
     uint32_t rwx = PTE_R | PTE_W | PTE_X | PTE_G;
 
@@ -43,13 +43,25 @@ void build_early_page_table(void) {
     update_satp(pa_early_root_pt);
 }
 
-static void reset_early_pt(void){}
+int8_t build_page_pte(const uint32_t* root_pt, uint32_t pa, uint32_t va, uint32_t flags) {
+    uint32_t* l2_pt = (uint32_t*)((root_pt[VPN_1(va)] & 0xFFFFFC00) << 2) ;
+
+    if (GET_PTE_V(GET_PTE_FLAGS(l2_pt[VPN_0(va)])) != 0) return -1;
+
+    l2_pt[VPN_0(va)] = make_l2_page_pte(pa, flags);
+    return 0;
+}
+
+// 重新映射并移除非必需部分
+static void reset_early_pt(void) {
+
+}
+
+// 释放无用内存
 static void init_mem_mapping(void){}
 
-void init_top_pgt(void) {
-    // 重新映射并移除非必需部分
+void pt_init_top_pgt(void) {
     reset_early_pt();
-    // 释放无用内存
     init_mem_mapping();
     // 迁移新页表
     // update_satp(pa(root_pt));

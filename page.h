@@ -8,8 +8,8 @@
 #include <stdatomic.h>
 #include <stdint.h>
 
-typedef struct {
+struct Page {
     atomic_int ref_count;
-} Page;
+};
 
 #endif //TOY_KERNEL_PAGE_H
