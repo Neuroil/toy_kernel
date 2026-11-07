@@ -58,7 +58,7 @@ _start:
 _s_start:
     /* 内核栈顶 */
     la sp, _stack_top
-    call build_early_page_table
+    call pt_build_early_page_table
 
 
     lui t0, %hi(_high_entry)
