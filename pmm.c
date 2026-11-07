@@ -9,11 +9,6 @@
 #include "pmm.h"
 #include "lac_symbols.h"
 
-// 全局唯一的一份 PMM 状态（头文件里只有 extern 声明）
-Page pages[NPAGES];
-uint32_t bitmap[BITMAP_WORDS];
-size_t free_pages;
-
 // 遮蔽物理空间
 static void mark_used(uintptr_t start, uintptr_t end) {
     // 按页大小对齐

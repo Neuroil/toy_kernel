@@ -12,6 +12,12 @@
 #include "lac_symbols.h"
 #include "page.h"
 
+struct Pmm {
+    struct Page*    pages;
+    uint32_t*       bitmap;
+    size_t          free_pages;
+};
+
 // 按2的幂对齐
 #define ALIGN_DOWN(x, a)  ((x) & ~((uintptr_t)(a) - 1))
 #define ALIGN_UP(x, a)    (((x) + (uintptr_t)(a) - 1) & ~((uintptr_t)(a) - 1))
@@ -20,7 +26,7 @@ static inline uintptr_t __pa(uintptr_t va) { return va + (uintptr_t)_kernel_offs
 static inline uintptr_t __va(uintptr_t pa) { return pa - (uintptr_t)_kernel_offset; }
 
 // 管理每一页的元数据
-extern Page pages[NPAGES];
+extern struct Page pages[NPAGES];
 // 位图管理是否被占用
 extern uint32_t bitmap[BITMAP_WORDS];
 // 余量

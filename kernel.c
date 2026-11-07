@@ -10,6 +10,8 @@
 #include "pmm.h"
 #include "page_table.h"
 
+#include "test.h"
+
 
 void timer_interrupt_test() {
     extern void trap_entry(void);
@@ -35,6 +37,7 @@ void kernel_main() {
 
     // do some work
     uint64_t time = read_mtime();
+    uart_put_string("time: ");
     print_uint64(time);
     uart_put_char('\n');
 
@@ -49,13 +52,25 @@ void kernel_main() {
     assert(new_page != 0);
     assert(bit_get(pa_to_idx(new_page)) == 1);
 
+    uart_put_string("new_page: ");
     print_uint64(new_page);
     uart_put_char('\n');
 
     pmm_free_page(new_page);
     assert(bit_get(pa_to_idx(new_page)) == 0);
 
-    init_top_pgt();
+    pt_init_top_pgt();
+
+    test_print_pte(early_root_pt, VPN_1(0x80000000), -1);
+    test_print_pte(early_root_pt, VPN_1(0xC0000000), -1);
+
+    int8_t res = build_l2_pt(early_root_pt, 0x80000000, 0x70000000);
+    uart_put_string("res: ");
+    uart_put_char(res + '0');
+    uart_put_char('\n');
+
+    test_print_pte(early_root_pt, VPN_1(0x70000000), -1);
+
     //
     uart_put_string("\nend\n");
     machine_power_off();
