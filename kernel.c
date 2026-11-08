@@ -7,8 +7,7 @@
 #include "uart.h"
 #include "power_off.h"
 #include "interupt.h"
-#include "pmm.h"
-#include "page_table.h"
+#include "mem.h"
 
 #include "test.h"
 
@@ -41,35 +40,16 @@ void kernel_main() {
     print_uint64(time);
     uart_put_char('\n');
 
-    timer_interrupt_test();
-    uint64_t now = read_mtime();
-    uint64_t sep = TIMER_INTERVAL * 2;
-    while (read_mtime() <= now + sep) {
-        asm volatile("wfi");
-    }
+    // timer_interrupt_test();
+    // uint64_t now = read_mtime();
+    // uint64_t sep = TIMER_INTERVAL * 2;
+    // while (read_mtime() <= now + sep) {
+    //     asm volatile("wfi");
+    // }
 
-    uintptr_t new_page = pmm_alloc_page();
-    assert(new_page != 0);
-    assert(bit_get(pa_to_idx(new_page)) == 1);
+    pt_init_top_pgt(kernel_mem.page_table);
 
-    uart_put_string("new_page: ");
-    print_uint64(new_page);
-    uart_put_char('\n');
-
-    pmm_free_page(new_page);
-    assert(bit_get(pa_to_idx(new_page)) == 0);
-
-    pt_init_top_pgt();
-
-    test_print_pte(early_root_pt, VPN_1(0x80000000), -1);
-    test_print_pte(early_root_pt, VPN_1(0xC0000000), -1);
-
-    int8_t res = build_l2_pt(early_root_pt, 0x80000000, 0x70000000);
-    uart_put_string("res: ");
-    uart_put_char(res + '0');
-    uart_put_char('\n');
-
-    test_print_pte(early_root_pt, VPN_1(0x70000000), -1);
+    test_print_pte(kernel_mem.page_table, VPN_1(0xDEADBEEF), VPN_0(0xDEADBEEF));
 
     //
     uart_put_string("\nend\n");
