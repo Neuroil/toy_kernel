@@ -7,7 +7,23 @@
 #include "page_table.h"
 #include "uart.h"
 
-static inline void test_print_pte(const uint32_t* pt, uint32_t vpn1, int32_t vpn0) {
+#define GET_PTE_V(f)        (((f) & (1 << 0)) >> 0)
+#define GET_PTE_R(f)        (((f) & (1 << 1)) >> 1)
+#define GET_PTE_W(f)        (((f) & (1 << 2)) >> 2)
+#define GET_PTE_X(f)        (((f) & (1 << 3)) >> 3)
+#define GET_PTE_G(f)        (((f) & (1 << 5)) >> 5)
+#define GET_PTE_A(f)        (((f) & (1 << 6)) >> 6)
+#define GET_PTE_D(f)        (((f) & (1 << 7)) >> 7)
+
+#define GET_PTE_FLAGS(p)    ((p) & 0x3FF)
+
+#define PPN_1(pa)           ((pa) >> 22)
+#define PPN(pa)             ((pa) >> 12)
+
+#define VPN_1(va)           ((va) >> 22)
+#define VPN_0(va)           (((va) >> 12) & 0x3FF)
+
+static inline void test_print_pte(const struct PageTable *pt, uint32_t vpn1, int32_t vpn0) {
     uint32_t pte = get_pte(pt, vpn1, vpn0);
     uart_put_string("pte: ");
     print_uint64(pte);
