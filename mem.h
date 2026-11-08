@@ -9,11 +9,13 @@
 #include "pmm.h"
 
 struct KernelMem {
-    struct Page*        pages;
+    // struct Page*        pages;
     struct Pmm*         pmm;
     struct PageTable*   page_table;
 };
 
 extern struct KernelMem kernel_mem;
+
+void init_kernel_mem();
 
 #endif //TOY_KERNEL_MEM_H

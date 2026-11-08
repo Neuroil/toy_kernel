@@ -7,7 +7,35 @@
 
 
 #include "pmm.h"
+#include "page.h"
+#include "config.h"
 #include "lac_symbols.h"
+
+struct Pmm pmm;
+
+struct Page pages[NPAGES];
+uint32_t    bitmap[BITMAP_WORDS];
+size_t      free_pages;
+
+
+
+// 按2的幂对齐
+#define ALIGN_DOWN(x, a)  ((x) & ~((uintptr_t)(a) - 1))
+#define ALIGN_UP(x, a)    (((x) + (uintptr_t)(a) - 1) & ~((uintptr_t)(a) - 1))
+
+static inline uintptr_t __pa(uintptr_t va) { return va + (uintptr_t)_kernel_offset; }
+static inline uintptr_t __va(uintptr_t pa) { return pa - (uintptr_t)_kernel_offset; }
+
+
+static inline int  bit_get(size_t i) { return (pmm.bitmap[i >> 5] >> (i & 31)) & 1u; }
+static inline void bit_set(size_t i) { pmm.bitmap[i >> 5] |= (1u << (i & 31)); }
+static inline void bit_clear(size_t i) { pmm.bitmap[i >> 5] &= ~(1u << (i & 31)); }
+
+// 页号 = 地址 / 页大小
+// 地址 = 基址 + 页号 * 页大小
+static inline size_t    pa_to_idx(uintptr_t pa) { return (pa - PHYS_BASE) >> PAGE_SHIFT; }
+static inline uintptr_t idx_to_pa(size_t i) { return PHYS_BASE + ((uintptr_t)i << PAGE_SHIFT); }
+
 
 // 遮蔽物理空间
 static void mark_used(uintptr_t start, uintptr_t end) {
@@ -23,14 +51,18 @@ static void mark_used(uintptr_t start, uintptr_t end) {
         size_t i = pa_to_idx(p);
         if (!bit_get(i)) {
             bit_set(i);
-            free_pages--;
+            pmm.free_pages--;
         }
     }
 }
 
-void pmm_init(void) {
-    for (size_t i = 0; i < BITMAP_WORDS; i++) bitmap[i] = 0;
-    free_pages = NPAGES;
+void pmm_init() {
+    // 初始化成员
+    pmm.bitmap = bitmap;
+    pmm.pages = pages;
+
+    for (size_t i = 0; i < BITMAP_WORDS; i++) pmm.bitmap[i] = 0;
+    pmm.free_pages = NPAGES;
 
     // 扣掉内核镜像
     mark_used((uintptr_t)_vir_kernel_base, (uintptr_t)_kernel_end);
@@ -39,15 +71,15 @@ void pmm_init(void) {
 }
 
 uintptr_t pmm_alloc_page() {
-    if (free_pages == 0) return 0;
+    if (pmm.free_pages == 0) return 0;
 
     for (size_t i = 0; i < BITMAP_WORDS; i++) {
-        if (bitmap[i] == 0xFFFFFFFFu) continue;
+        if (pmm.bitmap[i] == 0xFFFFFFFFu) continue;
 
         for (int b = 0; b < 32; b++) {
-            if (!(bitmap[i] & (1u << b))) {
-                bitmap[i] |= (1u << b);
-                free_pages--;
+            if (!(pmm.bitmap[i] & (1u << b))) {
+                pmm.bitmap[i] |= (1u << b);
+                pmm.free_pages--;
                 return idx_to_pa((i << 5) + (size_t)b);
             }
         }
@@ -64,5 +96,5 @@ void pmm_free_page(uintptr_t pa) {
     if (!bit_get(i)) return;
     bit_clear(i);
 
-    ++free_pages;
+    ++pmm.free_pages;
 }

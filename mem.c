@@ -4,8 +4,9 @@
 
 #include "mem.h"
 
-// 全局唯一的一份 PMM 状态（头文件里只有 extern 声明）
-struct Page pages[NPAGES];
-uint32_t bitmap[BITMAP_WORDS];
-size_t free_pages;
+struct PageTable early_pt = {early_root_pt, &pmm};
 
+struct KernelMem kernel_mem = {
+    .pmm = &pmm,
+    .page_table = &early_pt
+};
