@@ -135,12 +135,13 @@ gdb: $(ELF)
 # make f：跑 3 秒，把 QEMU 的 serial 输出和第一条 trap 打到终端。
 # 注意 </dev/null：QEMU 的 -nographic 在 stdin 是真实终端时会吞掉 -d 日志
 #（-D 写出的文件也是 0 字节）；stdin 接 /dev/null 后才正常。
-# awk 读到第一条 riscv_cpu_do_interrupt 就退出，不再打印后续的取指死循环；
-# QEMU 由 timeout 收尾，不会生成几百 MB 日志。
+# awk 丢弃异步中断（定时器，async:1）的日志，只在第一条同步异常（async:0）
+# 处退出，不再打印后续的取指死循环；QEMU 由 timeout 收尾，不会生成几百 MB 日志。
 f: $(ELF)
 	@timeout 3 $(QEMU) -M virt -m 128M -cpu rv32,sstc=on \
 	  -nographic -bios none -kernel $(ELF) \
-	  -d int,guest_errors </dev/null 2>&1 | awk '/riscv_cpu_do_interrupt/ { print; exit } { print }'
+	  -d int,guest_errors </dev/null 2>&1 | \
+	  awk '/riscv_cpu_do_interrupt/ { if (/async:1/) next; print; exit } { print }'
 
 # ------------------------------------------------------------------- 信息
 # 显示 elf 文件信息与布局
