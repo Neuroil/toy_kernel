@@ -23,20 +23,20 @@
 #include "uart.h"
 
 static inline uint64_t read_mtime() {
-    auto hi = (volatile uint32_t *) CLINT_MTIME_HI;
-    auto lo = (volatile uint32_t *) CLINT_MTIME_LO;
+    auto hi = (volatile uint32_t*)CLINT_MTIME_HI;
+    auto lo = (volatile uint32_t*)CLINT_MTIME_LO;
     uint32_t h1, l, h2;
 
     do {
         h1 = *hi;
-        l = *lo;
+        l  = *lo;
         h2 = *hi;
     } while (h1 != h2);
 
     return ((uint64_t)h1 << 32 | l);
 }
 
-/* Sstc：mtime >= stimecmp 时置起 STIP。RV32 上 64 位 CSR 分高低两半写 */
+// Sstc：mtime >= stimecmp 时置起 STIP。RV32 上 64 位 CSR 分高低两半写
 static inline void write_stimecmp(uint64_t value) {
     uint32_t hi = (uint32_t)(value >> 32);
     uint32_t lo = (uint32_t)value;
@@ -48,13 +48,30 @@ static inline void write_stimecmp(uint64_t value) {
     asm volatile("csrw stimecmp, %0" :: "r"(lo));
 }
 
+static void print_hex32(uint32_t v) {
+    for (int i = 28; i >= 0; i -= 4) uart_put_char("0123456789abcdef"[(v >> i) & 0xF]);
+}
+
 void trap_c_handler(uint32_t *regs) {
     (void)regs;
-    uint32_t scause;
+    uint32_t scause, sepc, stval;
     asm volatile("csrr %0, scause" : "=r"(scause));
+    asm volatile("csrr %0, sepc" : "=r"(sepc));
+    asm volatile("csrr %0, stval" : "=r"(stval));
+
+    if ((int32_t)scause >= 0) { // bit31=0 指的是异常，不是中断
+        uart_put_string("\nPANIC cause=");
+        print_hex32(scause);
+        uart_put_string(" epc=");
+        print_hex32(sepc);
+        uart_put_string(" tval=");
+        print_hex32(stval);
+        uart_put_char('\n');
+        for (;;) asm volatile("wfi"); // 绝不能 sret 回故障指令
+    }
 
     if (scause == MCAUSE_STI) {
-        /* 写一个新的 stimecmp 清掉本次 STIP */
+        // 写一个新的 stimecmp 清掉本次 STIP
         write_stimecmp(read_mtime() + TIMER_INTERVAL);
 
         static int six_seven = 67;
@@ -64,9 +81,7 @@ void trap_c_handler(uint32_t *regs) {
         if ((++six_seven & 1) == 1) print_uint64(67);
         else print_uint64(6767);
         uart_put_char('\n');
-
     }
     // 其他异常/中断
     // 读取磁盘
-
 }
